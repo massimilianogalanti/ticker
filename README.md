@@ -62,6 +62,10 @@ tickerScheduleTaskMs(&mainTicker, 100 /* ms */, myTaskPeriodic, pdata2, TASK_FLA
 
 while (1) {
   tickerTick(&mainTicker);
+  
+  if (mainTicker.Hz100) {
+    // this is still valid if you want to mix usages
+  }
   ...
 }
 ```
