@@ -4,6 +4,7 @@ Very tiny embedded scheduler for HRT applications in just one include file. Code
 ### Platform requirements
 You need to adapt the code to your hardware platform by simply adding the proper include(s) and defining two macros in ticker.h.
 ```C
+#ifndef GetSysCount
 /* Platform dependent */
 
 #include "stm32f4xx_hal.h"
