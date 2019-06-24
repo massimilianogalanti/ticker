@@ -3,7 +3,7 @@
  *
  *  v1.1
  *
- *  BSD License
+ *  MIT License
  *  Massimiliano Galanti <massimiliano.galanti@gmail.com>
  *
  *  Description:
