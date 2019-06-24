@@ -25,8 +25,8 @@ while (1) {
   ...
 }
 ```
-### Alternative usage as callbacks
-Same effect can be obtained by using callbacks (note that this syntax uses function pointers).
+### Callback mode
+Same effect can be obtained using callbacks (note that this syntax uses function pointers).
 ```C
 static task_return_t myTaskOneShot(ticker_t *t, void *pdata)
 {
