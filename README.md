@@ -28,12 +28,12 @@ This is the most simple usage, just needs to add proper checks in your main loop
 while (1) {
   tickerTick(&mainTicker);
   
-  if (mainTicker.Hz1) {
-    // toggle led1 @ 1Hz
-  }
-  
   if (mainTicker.Hz100) {
     // toggle led2 @ 100Hz
+  }
+  
+  if (mainTicker.Hz1) {
+    // toggle led1 @ 1Hz
   }
   ...
 }
