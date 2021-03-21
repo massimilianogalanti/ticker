@@ -47,7 +47,7 @@
 #define syscntPERIOD_Hz100  (  10 * SYSCNTxMS)
 #define syscntPERIOD_Hz200  (   5 * SYSCNTxMS)
 #define syscntPERIOD_Hz500  (   2 * SYSCNTxMS)
-#define syscntPERIOD_Hz1000  (   1 * SYSCNTxMS)
+#define syscntPERIOD_Hz1000 (   1 * SYSCNTxMS)
 
 struct ticker_s;
 
