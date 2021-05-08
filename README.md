@@ -1,5 +1,5 @@
 # ticker
-Very tiny embedded scheduler for HRT applications in just one include file. Code has currently been ported successfully to STM32, SPC5 and PICmicro families.
+Ticker is a naive embedded scheduler for HRT applications in just one include file. Code has currently been ported successfully to STM32, SPC5 and PICmicro families.
 
 ### Platform requirements
 You need to adapt the code to your hardware platform by simply adding the proper include(s) and defining two macros in ticker.h.
