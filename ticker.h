@@ -4,7 +4,7 @@
  *  v1.2
  *
  *  MIT License
- *  Massimiliano Galanti <massimiliano.galanti@gmail.com>
+ *  Massimiliano Galanti <massimilianogalanti@gmail.com>
  *
  *  Description:
  *
