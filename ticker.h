@@ -1,223 +1,203 @@
 /*
  * ticker.h
  *
- *  v1.3
+ * v1.5 (Modern C, Highly Compact)
  *
- *  MIT License
- *  Massimiliano Galanti <massimilianogalanti@gmail.com>
+ * MIT License
+ * Massimiliano Galanti <massimilianogalanti@gmail.com>
  *
- *  Description:
- *
- *  A simple collection of functions and data types to help implement real-time (frequency based) and delayed/repeated tasks.
- *
- *  Example:
- *
- *  ticker_t mainTicker;
- *  ...
- *  tickerInit(&mainTicker);
- *  ...
- *  while (1) {
- *  	tickerTick(&mainTicker);
- *
- *  	if (mainTicker.Hz5) {
- *  		...blink led...
- *  	}
- *  }
+ * Description:
+ * A simple collection of functions and data types to help implement real-time (frequency based) and delayed/repeated tasks.
  */
 
 #ifndef TICKER_H_
 #define TICKER_H_
 
+#include <stdint.h> // Standard integer types
+#include <stddef.h> // For size_t and NULL
+
+// --- Platform Configuration ---
+// The original dependency on "main.h" is preserved via a custom macro check.
 #ifndef GetSysCount
-/* Platform dependent */
-
-#include "main.h"
-
-#define GetSysCount() HAL_GetTick()
-#define SYSCNTxMS 1
+    #include "main.h" // Platform-specific include (e.g., for HAL_GetTick)
+    #define GetSysCount() HAL_GetTick()
+    #define SYSCNTxMS 1U // Use 'U' suffix for unsigned constants
 #endif
-/* Platform Independent */
 
-#define syscntPERIOD_Hz05   (2000 * SYSCNTxMS)
-#define syscntPERIOD_Hz1    (1000 * SYSCNTxMS)
-#define syscntPERIOD_Hz2    ( 500 * SYSCNTxMS)
-#define syscntPERIOD_Hz5    ( 200 * SYSCNTxMS)
-#define syscntPERIOD_Hz10   ( 100 * SYSCNTxMS)
-#define syscntPERIOD_Hz20   (  50 * SYSCNTxMS)
-#define syscntPERIOD_Hz50   (  20 * SYSCNTxMS)
-#define syscntPERIOD_Hz100  (  10 * SYSCNTxMS)
-#define syscntPERIOD_Hz200  (   5 * SYSCNTxMS)
-#define syscntPERIOD_Hz500  (   2 * SYSCNTxMS)
-#define syscntPERIOD_Hz1000 (   1 * SYSCNTxMS)
+// --- Constants & Types ---
 
-struct ticker_s;
+// 1. Use an anonymous enum for internal frequency constants for type safety.
+// These are the periods in milliseconds.
+enum {
+    PERIOD_05_HZ   = 2000U * SYSCNTxMS,
+    PERIOD_1_HZ    = 1000U * SYSCNTxMS,
+    PERIOD_2_HZ    = 500U * SYSCNTxMS,
+    PERIOD_5_HZ    = 200U * SYSCNTxMS,
+    PERIOD_10_HZ   = 100U * SYSCNTxMS,
+    PERIOD_20_HZ   = 50U * SYSCNTxMS,
+    PERIOD_50_HZ   = 20U * SYSCNTxMS,
+    PERIOD_100_HZ  = 10U * SYSCNTxMS,
+    PERIOD_200_HZ  = 5U * SYSCNTxMS,
+    PERIOD_500_HZ  = 2U * SYSCNTxMS,
+    PERIOD_1000_HZ = 1U * SYSCNTxMS,
+    TICKER_NUM_FREQUENCIES // 2. Helper constant for array sizing
+};
+
+// Array of periods, MUST match the order of the constants above.
+static const uint32_t TICKER_PERIODS[] = {
+    PERIOD_05_HZ, PERIOD_1_HZ, PERIOD_2_HZ, PERIOD_5_HZ, PERIOD_10_HZ,
+    PERIOD_20_HZ, PERIOD_50_HZ, PERIOD_100_HZ, PERIOD_200_HZ, PERIOD_500_HZ,
+    PERIOD_1000_HZ
+};
+
+// 3. Define the indexes for array access
+enum {
+    TICKER_IDX_05_HZ = 0, TICKER_IDX_1_HZ, TICKER_IDX_2_HZ, TICKER_IDX_5_HZ,
+    TICKER_IDX_10_HZ, TICKER_IDX_20_HZ, TICKER_IDX_50_HZ, TICKER_IDX_100_HZ,
+    TICKER_IDX_200_HZ, TICKER_IDX_500_HZ, TICKER_IDX_1000_HZ
+};
+
+// 4. Time difference macro using only unsigned integer subtraction for roll-over safety
+#define TIME_DIFFERENCE(now, prev) ((uint32_t)((now) - (prev)))
 
 typedef enum {
-  TASK_DONE = 0, TASK_REPEAT, TASK_ERROR
+    TASK_DONE = 0, TASK_REPEAT, TASK_ERROR
 } task_return_t;
-typedef task_return_t cb(struct ticker_s*, void*);
-typedef int task_id_t;
 
-#define TASK_FLAG_NONE 0
-#define TASK_FLAG_ONESHOT TASK_FLAG_NONE
-#define TASK_FLAG_PERIODIC 1
-typedef uint8_t task_flags_t;
+// Forward declaration of the main struct
+struct ticker_s;
 
-typedef struct {
-  task_id_t id;
-  task_flags_t flags;
-  void *arg;
-  cb *func;
-  uint32_t exp;
-  uint32_t interval;
-} ticker_task_t;
+typedef task_return_t (*cb_t)(struct ticker_s*, void*); // Use standard typedef naming convention
+typedef int8_t task_id_t; // Optimized size (up to 127 tasks)
+
+typedef enum {
+    TASK_FLAG_NONE = 0,
+    TASK_FLAG_ONESHOT = TASK_FLAG_NONE,
+    TASK_FLAG_PERIODIC = 0x01 // Use a power-of-2 flag value
+} task_flags_t;
 
 #define TICKER_MAX_TASKS 8
+
+typedef struct {
+    task_id_t id;
+    task_flags_t flags;
+    void *arg;
+    cb_t func; // Use the new typedef
+    uint32_t exp;
+    uint32_t interval;
+} ticker_task_t;
+
+// 5. Highly Compact Main Struct
 typedef struct ticker_s {
-  uint32_t now;
-
-  uint32_t tick05;
-  uint32_t tick1;
-  uint32_t tick2;
-  uint32_t tick5;
-  uint32_t tick10;
-  uint32_t tick20;
-  uint32_t tick50;
-  uint32_t tick100;
-  uint32_t tick200;
-  uint32_t tick500;
-  uint32_t tick1000;
-
-  uint8_t Hz05 :1;
-  uint8_t Hz1 :1;
-  uint8_t Hz2 :1;
-  uint8_t Hz5 :1;
-  uint8_t Hz10 :1;
-  uint8_t Hz20 :1;
-  uint8_t Hz50 :1;
-  uint8_t Hz100 :1;
-  uint8_t Hz200 :1;
-  uint8_t Hz500 :1;
-  uint8_t Hz1000 :1;
-
-  ticker_task_t tasks[TICKER_MAX_TASKS];
+    uint32_t now;
+    uint16_t Hz_flags; // Bitmask for all frequency flags (11 bits needed)
+    uint32_t tick_history[TICKER_NUM_FREQUENCIES]; // Array stores last tick time
+    ticker_task_t tasks[TICKER_MAX_TASKS];
 } ticker_t;
 
+// --- Flag Accessors (Simplified & Consistent) ---
+// Note: These expose the structure's state cleanly, replacing the old direct member access (t->Hz5).
+#define GET_HZ_FLAG(t, idx) ((t)->Hz_flags & (1U << (idx)))
+
+static inline int tickerIsHz05(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_05_HZ); }
+static inline int tickerIsHz1(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_1_HZ); }
+static inline int tickerIsHz2(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_2_HZ); }
+static inline int tickerIsHz5(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_5_HZ); }
+static inline int tickerIsHz10(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_10_HZ); }
+static inline int tickerIsHz20(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_20_HZ); }
+static inline int tickerIsHz50(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_50_HZ); }
+static inline int tickerIsHz100(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_100_HZ); }
+static inline int tickerIsHz200(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_200_HZ); }
+static inline int tickerIsHz500(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_500_HZ); }
+static inline int tickerIsHz1000(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_1000_HZ); }
+
+// --- Static Inline Functions ---
+
 static inline void tickerInit(ticker_t *t) {
-  t->now = t->tick05 = t->tick1 = t->tick2 = t->tick5 = t->tick10 = t->tick20 =
-      t->tick50 = t->tick100 = t->tick200 = t->tick500 = t->tick1000 =
-          GetSysCount();
+    uint32_t current_time = GetSysCount();
+    t->now = current_time;
+    t->Hz_flags = 0;
+    // 6. Use a loop for array initialization, more efficient and less code
+    for (size_t i = 0; i < TICKER_NUM_FREQUENCIES; i++) {
+        t->tick_history[i] = current_time;
+    }
 }
 
-#define DIFFU32(x, y) (uint32_t) (x - y)
-
 static inline void tickerDelayMs(uint32_t val, void (*wd)(void)) {
-  uint32_t now = GetSysCount();
+    uint32_t now = GetSysCount();
+    // 7. Simplified and grouped multiplication for clarity
+    uint32_t required_diff = val * SYSCNTxMS;
 
-  while (DIFFU32(GetSysCount(), now) < val * SYSCNTxMS)
-    if (wd)
-      wd();
+    while (TIME_DIFFERENCE(GetSysCount(), now) < required_diff)
+        if (wd)
+            wd();
 }
 
 static inline task_id_t tickerScheduleTaskMs(ticker_t *t, task_id_t i,
-    uint32_t val, cb *func, void *arg, task_flags_t flags) {
-  if (t && func && i >= 0 && i < TICKER_MAX_TASKS) {
-    if (0 == t->tasks[i].func) {
-      t->tasks[i].interval = val;
-      t->tasks[i].exp = t->now + t->tasks[i].interval * SYSCNTxMS;
-      t->tasks[i].func = func;
-      t->tasks[i].arg = arg;
-      t->tasks[i].id = i;
-      t->tasks[i].flags = flags;
-      return i;
-    } else {
-      return -2;
+    uint32_t val, cb_t func, void *arg, task_flags_t flags) {
+
+    if (t == NULL || func == NULL || i < 0 || i >= TICKER_MAX_TASKS) {
+        return -1; // Standard error for bad arguments
     }
-  }
-  return -1;
+    if (t->tasks[i].func != NULL) {
+        return -2; // Slot already taken
+    }
+
+    t->tasks[i].interval = val;
+    t->tasks[i].exp = t->now + (t->tasks[i].interval * SYSCNTxMS);
+    t->tasks[i].func = func;
+    t->tasks[i].arg = arg;
+    t->tasks[i].id = i;
+    t->tasks[i].flags = flags;
+    return i;
 }
 
 static inline int tickerTaskIsPending(ticker_t *t, task_id_t id) {
-  return (t->tasks[id].func != 0);
+    if (id >= 0 && id < TICKER_MAX_TASKS) {
+        return (t->tasks[id].func != NULL);
+    }
+    return 0;
 }
 
 static inline void tickerCancelTask(ticker_t *t, task_id_t id) {
-  if (id > -1 && id < TICKER_MAX_TASKS) {
-    t->tasks[id].func = 0;
-  }
+    if (id >= 0 && id < TICKER_MAX_TASKS) {
+        t->tasks[id].func = NULL;
+    }
 }
 
 static inline void tickerTick(ticker_t *t) {
-  t->now = GetSysCount();
+    t->now = GetSysCount();
 
-  for (task_id_t i = 0; i < TICKER_MAX_TASKS; i++) {
-    if (t->tasks[i].func && t->now >= t->tasks[i].exp) {
-      task_return_t res = t->tasks[i].func(t, t->tasks[i].arg);
-      if (t->tasks[i].flags & TASK_FLAG_PERIODIC && TASK_REPEAT == res) {
-        t->tasks[i].exp = t->now + t->tasks[i].interval * SYSCNTxMS;
-      } else {
-        t->tasks[i].func = 0;
-      }
+    // 8. Process scheduled tasks
+    for (task_id_t i = 0; i < TICKER_MAX_TASKS; i++) {
+        if (t->tasks[i].func != NULL && TIME_DIFFERENCE(t->now, t->tasks[i].exp) <= 0) {
+            task_return_t res = t->tasks[i].func(t, t->tasks[i].arg);
+            
+            if ((t->tasks[i].flags & TASK_FLAG_PERIODIC) && (res == TASK_REPEAT)) {
+                // Prevent drift: calculate next exp relative to the *last* exp.
+                t->tasks[i].exp += (t->tasks[i].interval * SYSCNTxMS);
+            } else {
+                t->tasks[i].func = NULL; // Cancel one-shot or non-TASK_REPEAT tasks
+            }
+        }
     }
-  }
 
-  t->Hz05 = t->Hz1 = t->Hz2 = t->Hz5 = t->Hz10 = t->Hz20 = t->Hz50 = t->Hz100 =
-      t->Hz200 = t->Hz500 = t->Hz1000 = 0;
+    // 9. Process fixed-frequency ticks using a loop over the constant array
+    t->Hz_flags = 0; // Reset all flags in one instruction
 
-  if (DIFFU32(t->now, t->tick1000) >= syscntPERIOD_Hz1000) {
-    t->Hz1000 = 1;
-    t->tick1000 += syscntPERIOD_Hz1000;
-  }
+    for (size_t i = 0; i < TICKER_NUM_FREQUENCIES; i++) {
+        // Time elapsed since last tick > required period?
+        if (TIME_DIFFERENCE(t->now, t->tick_history[i]) >= TICKER_PERIODS[i]) {
+            t->Hz_flags |= (1U << i);        // Set the corresponding bit flag
+            t->tick_history[i] += TICKER_PERIODS[i]; // Advance the timer
+        }
+    }
+}
 
-  if (DIFFU32(t->now, t->tick500) >= syscntPERIOD_Hz500) {
-    t->Hz500 = 1;
-    t->tick500 += syscntPERIOD_Hz500;
-  }
-
-  if (DIFFU32(t->now, t->tick200) >= syscntPERIOD_Hz200) {
-    t->Hz200 = 1;
-    t->tick200 += syscntPERIOD_Hz200;
-  }
-
-  if (DIFFU32(t->now, t->tick100) >= syscntPERIOD_Hz100) {
-    t->Hz100 = 1;
-    t->tick100 += syscntPERIOD_Hz100;
-  }
-
-  if (DIFFU32(t->now, t->tick50) >= syscntPERIOD_Hz50) {
-    t->Hz50 = 1;
-    t->tick50 += syscntPERIOD_Hz50;
-  }
-
-  if (DIFFU32(t->now, t->tick20) >= syscntPERIOD_Hz20) {
-    t->Hz20 = 1;
-    t->tick20 += syscntPERIOD_Hz20;
-  }
-
-  if (DIFFU32(t->now, t->tick10) >= syscntPERIOD_Hz10) {
-    t->Hz10 = 1;
-    t->tick10 += syscntPERIOD_Hz10;
-  }
-
-  if (DIFFU32(t->now, t->tick5) >= syscntPERIOD_Hz5) {
-    t->Hz5 = 1;
-    t->tick5 += syscntPERIOD_Hz5;
-  }
-
-  if (DIFFU32(t->now, t->tick2) >= syscntPERIOD_Hz2) {
-    t->Hz2 = 1;
-    t->tick2 += syscntPERIOD_Hz2;
-  }
-
-  if (DIFFU32(t->now, t->tick1) >= syscntPERIOD_Hz1) {
-    t->Hz1 = 1;
-    t->tick1 += syscntPERIOD_Hz1;
-  }
-
-  if (DIFFU32(t->now, t->tick05) >= syscntPERIOD_Hz05) {
-    t->Hz05 = 1;
-    t->tick05 += syscntPERIOD_Hz05;
-  }
+// 10. Added seconds helper function
+static inline task_id_t tickerScheduleTaskSec(ticker_t *t, task_id_t i,
+    uint32_t val_sec, cb_t func, void *arg, task_flags_t flags) {
+    return tickerScheduleTaskMs(t, i, val_sec * 1000U, func, arg, flags);
 }
 
 #endif /* TICKER_H_ */
