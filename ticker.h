@@ -2,7 +2,7 @@
  * @file ticker.h
  * @brief A simple collection of functions and data types to help implement real-time (frequency based) and delayed/repeated tasks.
  *
- * @version 1.5
+ * @version 1.6
  *
  * @copyright MIT License
  * @author Massimiliano Galanti <massimilianogalanti@gmail.com>
@@ -34,24 +34,32 @@
  * @{
  */
 #ifndef GetSysCount
-    /**
-     * @brief Platform-specific include for system time retrieval (e.g., HAL_GetTick).
-     */
-    #include "main.h"
+/**
+ * @brief Platform-specific include for system time retrieval (e.g., HAL_GetTick).
+ */
+#include "main.h"
 
-    /**
-     * @brief Macro to retrieve the current system tick count.
-     * @return The current system time in milliseconds (or platform equivalent).
-     */
-    #define GetSysCount() HAL_GetTick()
+/**
+ * @brief Macro to retrieve the current system tick count.
+ * @return The current system time in milliseconds (or platform equivalent).
+ */
+#define GetSysCount() HAL_GetTick()
 
-    /**
-     * @brief System count units per millisecond.
-     *
-     * Defines the multiplier to convert millisecond values to system count units.
-     * Typically 1 if GetSysCount() returns milliseconds.
-     */
-    #define SYSCNTxMS 1U
+/**
+ * @brief System count units per millisecond.
+ *
+ * Defines the multiplier to convert millisecond values to system count units.
+ * Typically 1 if GetSysCount() returns milliseconds.
+ */
+#define SYSCNTxMS 1U
+
+/**
+ * @brief time base type count
+ *
+ * Defines the syscount type holding the tick counter.
+ * Typically uint32_t if GetSysCount() returns milliseconds.
+ */
+#define syscount_t uint32_t
 #endif
 /** @} */ // end of platform_config
 
@@ -65,19 +73,20 @@
  *
  * Defines the required time difference for each standard frequency.
  */
-enum {
-    PERIOD_05_HZ   = 2000U * SYSCNTxMS, ///< Period for 0.5 Hz (2000 ms)
-    PERIOD_1_HZ    = 1000U * SYSCNTxMS, ///< Period for 1 Hz (1000 ms)
-    PERIOD_2_HZ    = 500U * SYSCNTxMS,  ///< Period for 2 Hz (500 ms)
-    PERIOD_5_HZ    = 200U * SYSCNTxMS,  ///< Period for 5 Hz (200 ms)
-    PERIOD_10_HZ   = 100U * SYSCNTxMS,  ///< Period for 10 Hz (100 ms)
-    PERIOD_20_HZ   = 50U * SYSCNTxMS,   ///< Period for 20 Hz (50 ms)
-    PERIOD_50_HZ   = 20U * SYSCNTxMS,   ///< Period for 50 Hz (20 ms)
-    PERIOD_100_HZ  = 10U * SYSCNTxMS,   ///< Period for 100 Hz (10 ms)
-    PERIOD_200_HZ  = 5U * SYSCNTxMS,    ///< Period for 200 Hz (5 ms)
-    PERIOD_500_HZ  = 2U * SYSCNTxMS,    ///< Period for 500 Hz (2 ms)
-    PERIOD_1000_HZ = 1U * SYSCNTxMS,    ///< Period for 1000 Hz (1 ms)
-    TICKER_NUM_FREQUENCIES             ///< Helper constant: Total number of supported frequencies.
+enum
+{
+    PERIOD_05_HZ = 2000U * SYSCNTxMS, ///< Period for 0.5 Hz (2000 ms)
+    PERIOD_1_HZ = 1000U * SYSCNTxMS,  ///< Period for 1 Hz (1000 ms)
+    PERIOD_2_HZ = 500U * SYSCNTxMS,   ///< Period for 2 Hz (500 ms)
+    PERIOD_5_HZ = 200U * SYSCNTxMS,   ///< Period for 5 Hz (200 ms)
+    PERIOD_10_HZ = 100U * SYSCNTxMS,  ///< Period for 10 Hz (100 ms)
+    PERIOD_20_HZ = 50U * SYSCNTxMS,   ///< Period for 20 Hz (50 ms)
+    PERIOD_50_HZ = 20U * SYSCNTxMS,   ///< Period for 50 Hz (20 ms)
+    PERIOD_100_HZ = 10U * SYSCNTxMS,  ///< Period for 100 Hz (10 ms)
+    PERIOD_200_HZ = 5U * SYSCNTxMS,   ///< Period for 200 Hz (5 ms)
+    PERIOD_500_HZ = 2U * SYSCNTxMS,   ///< Period for 500 Hz (2 ms)
+    PERIOD_1000_HZ = 1U * SYSCNTxMS,  ///< Period for 1000 Hz (1 ms)
+    TICKER_NUM_FREQUENCIES            ///< Helper constant: Total number of supported frequencies.
 };
 
 /**
@@ -86,19 +95,27 @@ enum {
  * This array is used internally by tickerTick() for loop-based calculation.
  * The order must match the enum constants above.
  */
-static const uint32_t TICKER_PERIODS[] = {
+static const syscount_t TICKER_PERIODS[] = {
     PERIOD_05_HZ, PERIOD_1_HZ, PERIOD_2_HZ, PERIOD_5_HZ, PERIOD_10_HZ,
     PERIOD_20_HZ, PERIOD_50_HZ, PERIOD_100_HZ, PERIOD_200_HZ, PERIOD_500_HZ,
-    PERIOD_1000_HZ
-};
+    PERIOD_1000_HZ};
 
 /**
  * @brief Defines array indexes for accessing frequency-related data.
  */
-enum {
-    TICKER_IDX_05_HZ = 0, TICKER_IDX_1_HZ, TICKER_IDX_2_HZ, TICKER_IDX_5_HZ,
-    TICKER_IDX_10_HZ, TICKER_IDX_20_HZ, TICKER_IDX_50_HZ, TICKER_IDX_100_HZ,
-    TICKER_IDX_200_HZ, TICKER_IDX_500_HZ, TICKER_IDX_1000_HZ
+enum
+{
+    TICKER_IDX_05_HZ = 0,
+    TICKER_IDX_1_HZ,
+    TICKER_IDX_2_HZ,
+    TICKER_IDX_5_HZ,
+    TICKER_IDX_10_HZ,
+    TICKER_IDX_20_HZ,
+    TICKER_IDX_50_HZ,
+    TICKER_IDX_100_HZ,
+    TICKER_IDX_200_HZ,
+    TICKER_IDX_500_HZ,
+    TICKER_IDX_1000_HZ
 };
 /** @} */ // end of constants
 
@@ -115,7 +132,7 @@ enum {
  * @param prev The previous timestamp.
  * @return The time elapsed from @p prev to @p now.
  */
-#define TIME_DIFFERENCE(now, prev) ((uint32_t)((now) - (prev)))
+#define TIME_DIFFERENCE(now, prev) ((syscount_t)((now) - (prev)))
 /** @} */ // end of macros
 
 /** @defgroup task_management Task Management
@@ -125,14 +142,15 @@ enum {
 /**
  * @brief Return codes for a task callback function.
  */
-typedef enum {
-    TASK_DONE = 0,      ///< Task finished; cancel scheduling.
-    TASK_REPEAT,        ///< Task finished but should be rescheduled (for periodic tasks).
-    TASK_ERROR          ///< Task failed (implementation dependent).
+typedef enum
+{
+    TASK_DONE = 0, ///< Task finished; cancel scheduling.
+    TASK_REPEAT,   ///< Task finished but should be rescheduled (for periodic tasks).
+    TASK_ERROR     ///< Task failed (implementation dependent).
 } task_return_t;
 
 /** Forward declaration of the main ticker structure. */
-struct ticker_s;
+typedef struct ticker_s ticker_t;
 
 /**
  * @brief Function pointer type for a task callback.
@@ -140,7 +158,7 @@ struct ticker_s;
  * @param arg User-defined argument passed during scheduling.
  * @return A value from the task_return_t enumeration.
  */
-typedef task_return_t (*cb_t)(struct ticker_s*, void*);
+typedef task_return_t (*cb_t)(ticker_t *, void *);
 
 /**
  * @brief Type definition for a task ID.
@@ -152,27 +170,31 @@ typedef int8_t task_id_t;
 /**
  * @brief Task behavior flags.
  */
-typedef enum {
-    TASK_FLAG_NONE = 0,     ///< Default: One-shot task.
+typedef enum
+{
+    TASK_FLAG_NONE = 0,                 ///< Default: One-shot task.
     TASK_FLAG_ONESHOT = TASK_FLAG_NONE, ///< Alias for one-shot task.
-    TASK_FLAG_PERIODIC = 0x01 ///< Task will repeat until it returns TASK_DONE.
+    TASK_FLAG_PERIODIC = 0x01           ///< Task will repeat until it returns TASK_DONE.
 } task_flags_t;
 
 /**
  * @brief Maximum number of supported scheduled tasks.
  */
+#ifndef TICKER_MAX_TASKS
 #define TICKER_MAX_TASKS 8
+#endif
 
 /**
  * @brief Structure defining a single scheduled task.
  */
-typedef struct {
-    task_id_t id;           ///< The task's index/ID in the tasks array.
-    task_flags_t flags;     ///< Behavior flags (e.g., periodic, one-shot).
-    void *arg;              ///< User-defined argument passed to the callback function.
-    cb_t func;              ///< Pointer to the task function. NULL if slot is free.
-    uint32_t exp;           ///< Expiration time (system count units) for the task.
-    uint32_t interval;      ///< Interval between runs (in milliseconds).
+typedef struct
+{
+    task_id_t id;        ///< The task's index/ID in the tasks array.
+    task_flags_t flags;  ///< Behavior flags (e.g., periodic, one-shot).
+    void *arg;           ///< User-defined argument passed to the callback function.
+    cb_t func;           ///< Pointer to the task function. NULL if slot is free.
+    syscount_t exp;      ///< Expiration time (system count units) for the task.
+    syscount_t interval; ///< Interval between runs (in milliseconds).
 } ticker_task_t;
 
 /**
@@ -180,14 +202,14 @@ typedef struct {
  *
  * Holds the current time, frequency flags, historical tick times, and scheduled tasks.
  */
-typedef struct ticker_s {
-    uint32_t now;           ///< The most recent system count recorded by tickerTick().
-    uint16_t Hz_flags;      ///< Bitmask where each bit indicates a frequency has just ticked.
-    uint32_t tick_history[TICKER_NUM_FREQUENCIES]; ///< Last time each frequency was registered.
-    ticker_task_t tasks[TICKER_MAX_TASKS]; ///< Array of scheduled tasks.
+typedef struct ticker_s
+{
+    syscount_t now;                                  ///< The most recent system count recorded by tickerTick().
+    uint16_t Hz_flags;                               ///< Bitmask where each bit indicates a frequency has just ticked.
+    syscount_t tick_history[TICKER_NUM_FREQUENCIES]; ///< Last time each frequency was registered.
+    ticker_task_t tasks[TICKER_MAX_TASKS];           ///< Array of scheduled tasks.
 } ticker_t;
 /** @} */ // end of task_management
-
 
 /** @defgroup api Public API
  * @{
@@ -279,7 +301,6 @@ static inline int tickerIsHz500(const ticker_t *t) { return GET_HZ_FLAG(t, TICKE
  */
 static inline int tickerIsHz1000(const ticker_t *t) { return GET_HZ_FLAG(t, TICKER_IDX_1000_HZ); }
 
-
 // --- Core Functions ---
 
 /**
@@ -288,11 +309,13 @@ static inline int tickerIsHz1000(const ticker_t *t) { return GET_HZ_FLAG(t, TICK
  * Sets the current time and all historical tick times to the system's current count.
  * @param t Pointer to the ticker_t instance to initialize.
  */
-static inline void tickerInit(ticker_t *t) {
-    uint32_t current_time = GetSysCount();
+static inline void tickerInit(ticker_t *t)
+{
+    syscount_t current_time = GetSysCount();
     t->now = current_time;
     t->Hz_flags = 0;
-    for (size_t i = 0; i < TICKER_NUM_FREQUENCIES; i++) {
+    for (size_t i = 0; i < TICKER_NUM_FREQUENCIES; i++)
+    {
         t->tick_history[i] = current_time;
     }
 }
@@ -304,9 +327,10 @@ static inline void tickerInit(ticker_t *t) {
  * @param val Delay duration in milliseconds.
  * @param wd Optional pointer to a function to call inside the loop (e.g., watchdog reset). Can be NULL.
  */
-static inline void tickerDelayMs(uint32_t val, void (*wd)(void)) {
-    uint32_t now = GetSysCount();
-    uint32_t required_diff = val * SYSCNTxMS;
+static inline void tickerDelayMs(syscount_t val, void (*wd)(void))
+{
+    syscount_t now = GetSysCount();
+    syscount_t required_diff = val * SYSCNTxMS;
 
     while (TIME_DIFFERENCE(GetSysCount(), now) < required_diff)
         if (wd)
@@ -325,12 +349,15 @@ static inline void tickerDelayMs(uint32_t val, void (*wd)(void)) {
  * @return The task ID on success (i), -1 for bad arguments, or -2 if the slot is occupied.
  */
 static inline task_id_t tickerScheduleTaskMs(ticker_t *t, task_id_t i,
-    uint32_t val, cb_t func, void *arg, task_flags_t flags) {
+                                             syscount_t val, cb_t func, void *arg, task_flags_t flags)
+{
 
-    if (t == NULL || func == NULL || i < 0 || i >= TICKER_MAX_TASKS) {
+    if (t == NULL || func == NULL || i < 0 || i >= TICKER_MAX_TASKS)
+    {
         return -1;
     }
-    if (t->tasks[i].func != NULL) {
+    if (t->tasks[i].func != NULL)
+    {
         return -2;
     }
 
@@ -356,7 +383,8 @@ static inline task_id_t tickerScheduleTaskMs(ticker_t *t, task_id_t i,
  * @return The task ID on success (i), -1 for bad arguments, or -2 if the slot is occupied.
  */
 static inline task_id_t tickerScheduleTaskSec(ticker_t *t, task_id_t i,
-    uint32_t val_sec, cb_t func, void *arg, task_flags_t flags) {
+                                              syscount_t val_sec, cb_t func, void *arg, task_flags_t flags)
+{
     return tickerScheduleTaskMs(t, i, val_sec * 1000U, func, arg, flags);
 }
 
@@ -366,8 +394,10 @@ static inline task_id_t tickerScheduleTaskSec(ticker_t *t, task_id_t i,
  * @param id The task ID/slot index to check.
  * @return Non-zero (true) if pending, 0 (false) otherwise.
  */
-static inline int tickerTaskIsPending(ticker_t *t, task_id_t id) {
-    if (id >= 0 && id < TICKER_MAX_TASKS) {
+static inline int tickerTaskIsPending(ticker_t *t, task_id_t id)
+{
+    if (id >= 0 && id < TICKER_MAX_TASKS)
+    {
         return (t->tasks[id].func != NULL);
     }
     return 0;
@@ -378,8 +408,10 @@ static inline int tickerTaskIsPending(ticker_t *t, task_id_t id) {
  * @param t Pointer to the ticker_t instance.
  * @param id The task ID/slot index to cancel.
  */
-static inline void tickerCancelTask(ticker_t *t, task_id_t id) {
-    if (id >= 0 && id < TICKER_MAX_TASKS) {
+static inline void tickerCancelTask(ticker_t *t, task_id_t id)
+{
+    if (id >= 0 && id < TICKER_MAX_TASKS)
+    {
         t->tasks[id].func = NULL;
     }
 }
@@ -392,19 +424,25 @@ static inline void tickerCancelTask(ticker_t *t, task_id_t id) {
  *
  * @param t Pointer to the ticker_t instance.
  */
-static inline void tickerTick(ticker_t *t) {
+static inline void tickerTick(ticker_t *t)
+{
     t->now = GetSysCount();
 
     // Process scheduled tasks
-    for (task_id_t i = 0; i < TICKER_MAX_TASKS; i++) {
-        // Check if the slot is active AND time has expired (handling roll-over)
-        if (t->tasks[i].func != NULL && TIME_DIFFERENCE(t->now, t->tasks[i].exp) <= 0) {
+    for (task_id_t i = 0; i < TICKER_MAX_TASKS; i++)
+    {
+        // Check if the slot is active AND time has expired (:TODO: handle roll-over?)
+        if (t->tasks[i].func != NULL && t->now >= t->tasks[i].exp)
+        {
             task_return_t res = t->tasks[i].func(t, t->tasks[i].arg);
 
-            if ((t->tasks[i].flags & TASK_FLAG_PERIODIC) && (res == TASK_REPEAT)) {
+            if ((t->tasks[i].flags & TASK_FLAG_PERIODIC) && (res == TASK_REPEAT))
+            {
                 // Prevent drift: calculate next exp relative to the *last* exp.
                 t->tasks[i].exp += (t->tasks[i].interval * SYSCNTxMS);
-            } else {
+            }
+            else
+            {
                 t->tasks[i].func = NULL; // Cancel one-shot or non-TASK_REPEAT tasks
             }
         }
@@ -413,10 +451,12 @@ static inline void tickerTick(ticker_t *t) {
     // Process fixed-frequency ticks
     t->Hz_flags = 0; // Reset all flags in one instruction
 
-    for (size_t i = 0; i < TICKER_NUM_FREQUENCIES; i++) {
+    for (size_t i = 0; i < TICKER_NUM_FREQUENCIES; i++)
+    {
         // Time elapsed since last tick > required period?
-        if (TIME_DIFFERENCE(t->now, t->tick_history[i]) >= TICKER_PERIODS[i]) {
-            t->Hz_flags |= (1U << i);        // Set the corresponding bit flag
+        if (TIME_DIFFERENCE(t->now, t->tick_history[i]) >= TICKER_PERIODS[i])
+        {
+            t->Hz_flags |= (1U << i);                // Set the corresponding bit flag
             t->tick_history[i] += TICKER_PERIODS[i]; // Advance the timer
         }
     }
