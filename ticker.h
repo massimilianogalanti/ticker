@@ -2,7 +2,7 @@
  * @file ticker.h
  * @brief A simple collection of functions and data types to help implement real-time (frequency based) and delayed/repeated tasks.
  *
- * @version 1.6
+ * @version 1.7
  *
  * @copyright MIT License
  * @author Massimiliano Galanti <massimilianogalanti@gmail.com>
@@ -125,7 +125,7 @@ enum
 /**
  * @brief Calculates the time difference between two unsigned 32-bit timestamps.
  *
- * This macro correctly handles the 32-bit integer wrap-around (roll-over)
+ * This macro correctly handles the xx-bit integer wrap-around (roll-over)
  * characteristic of typical system counters.
  *
  * @param now The current timestamp.
@@ -189,12 +189,13 @@ typedef enum
  */
 typedef struct
 {
-    task_id_t id;        ///< The task's index/ID in the tasks array.
-    task_flags_t flags;  ///< Behavior flags (e.g., periodic, one-shot).
-    void *arg;           ///< User-defined argument passed to the callback function.
-    cb_t func;           ///< Pointer to the task function. NULL if slot is free.
-    syscount_t exp;      ///< Expiration time (system count units) for the task.
-    syscount_t interval; ///< Interval between runs (in milliseconds).
+    task_id_t id;         ///< The task's index/ID in the tasks array.
+    task_flags_t flags;   ///< Behavior flags (e.g., periodic, one-shot).
+    void *arg;            ///< User-defined argument passed to the callback function.
+    cb_t func;            ///< Pointer to the task function. NULL if slot is free.
+    syscount_t exp;       ///< Expiration time (system count units) for the task.
+    uint8_t overflow : 1; ///< Overflow flag (toggle) fir the expiration time.
+    syscount_t interval;  ///< Interval between runs (in milliseconds).
 } ticker_task_t;
 
 /**
@@ -205,6 +206,7 @@ typedef struct
 typedef struct ticker_s
 {
     syscount_t now;                                  ///< The most recent system count recorded by tickerTick().
+    uint8_t overflow : 1;                            ///< Overflow flag (toggle)
     uint16_t Hz_flags;                               ///< Bitmask where each bit indicates a frequency has just ticked.
     syscount_t tick_history[TICKER_NUM_FREQUENCIES]; ///< Last time each frequency was registered.
     ticker_task_t tasks[TICKER_MAX_TASKS];           ///< Array of scheduled tasks.
@@ -321,23 +323,6 @@ static inline void tickerInit(ticker_t *t)
 }
 
 /**
- * @brief Provides a blocking delay with an optional watchdog reset function.
- *
- * @warning This function is blocking and consumes CPU cycles while waiting.
- * @param val Delay duration in milliseconds.
- * @param wd Optional pointer to a function to call inside the loop (e.g., watchdog reset). Can be NULL.
- */
-static inline void tickerDelayMs(syscount_t val, void (*wd)(void))
-{
-    syscount_t now = GetSysCount();
-    syscount_t required_diff = val * SYSCNTxMS;
-
-    while (TIME_DIFFERENCE(GetSysCount(), now) < required_diff)
-        if (wd)
-            wd();
-}
-
-/**
  * @brief Schedules a task to run after a specified delay in milliseconds.
  *
  * @param t Pointer to the ticker_t instance.
@@ -356,6 +341,7 @@ static inline task_id_t tickerScheduleTaskMs(ticker_t *t, task_id_t i,
     {
         return -1;
     }
+
     if (t->tasks[i].func != NULL)
     {
         return -2;
@@ -363,6 +349,7 @@ static inline task_id_t tickerScheduleTaskMs(ticker_t *t, task_id_t i,
 
     t->tasks[i].interval = val;
     t->tasks[i].exp = t->now + (t->tasks[i].interval * SYSCNTxMS);
+    t->tasks[i].overflow = (t->tasks[i].exp > t->now) ? t->overflow : t->overflow ^ 1;
     t->tasks[i].func = func;
     t->tasks[i].arg = arg;
     t->tasks[i].id = i;
@@ -426,20 +413,25 @@ static inline void tickerCancelTask(ticker_t *t, task_id_t id)
  */
 static inline void tickerTick(ticker_t *t)
 {
+    syscount_t prev = t->now;
     t->now = GetSysCount();
+
+    if (prev > t->now)
+        t->overflow ^= 1;
 
     // Process scheduled tasks
     for (task_id_t i = 0; i < TICKER_MAX_TASKS; i++)
     {
-        // Check if the slot is active AND time has expired (:TODO: handle roll-over?)
-        if (t->tasks[i].func != NULL && t->now >= t->tasks[i].exp)
+        // Check if the slot is active AND time has expired
+        if (t->tasks[i].func != NULL && (t->overflow == t->tasks[i].overflow && t->now >= t->tasks[i].exp))
         {
-            task_return_t res = t->tasks[i].func(t, t->tasks[i].arg);
+            const task_return_t res = t->tasks[i].func(t, t->tasks[i].arg);
 
             if ((t->tasks[i].flags & TASK_FLAG_PERIODIC) && (res == TASK_REPEAT))
             {
                 // Prevent drift: calculate next exp relative to the *last* exp.
                 t->tasks[i].exp += (t->tasks[i].interval * SYSCNTxMS);
+                t->tasks[i].overflow = (t->tasks[i].exp > t->now) ? t->overflow : t->overflow ^ 1;
             }
             else
             {
