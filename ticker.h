@@ -2,7 +2,7 @@
  * @file ticker.h
  * @brief A simple collection of functions and data types to help implement real-time (frequency based) and delayed/repeated tasks.
  *
- * @version 1.7
+ * @version 1.8
  *
  * @copyright MIT License
  * @author Massimiliano Galanti <massimilianogalanti@gmail.com>
@@ -73,6 +73,7 @@
  *
  * Defines the required time difference for each standard frequency.
  */
+
 enum
 {
     PERIOD_05_HZ = 2000U * SYSCNTxMS, ///< Period for 0.5 Hz (2000 ms)
@@ -85,8 +86,7 @@ enum
     PERIOD_100_HZ = 10U * SYSCNTxMS,  ///< Period for 100 Hz (10 ms)
     PERIOD_200_HZ = 5U * SYSCNTxMS,   ///< Period for 200 Hz (5 ms)
     PERIOD_500_HZ = 2U * SYSCNTxMS,   ///< Period for 500 Hz (2 ms)
-    PERIOD_1000_HZ = 1U * SYSCNTxMS,  ///< Period for 1000 Hz (1 ms)
-    TICKER_NUM_FREQUENCIES            ///< Helper constant: Total number of supported frequencies.
+    PERIOD_1000_HZ = 1U * SYSCNTxMS   ///< Period for 1000 Hz (1 ms)
 };
 
 /**
@@ -99,6 +99,8 @@ static const syscount_t TICKER_PERIODS[] = {
     PERIOD_05_HZ, PERIOD_1_HZ, PERIOD_2_HZ, PERIOD_5_HZ, PERIOD_10_HZ,
     PERIOD_20_HZ, PERIOD_50_HZ, PERIOD_100_HZ, PERIOD_200_HZ, PERIOD_500_HZ,
     PERIOD_1000_HZ};
+
+#define TICKER_NUM_FREQUENCIES sizeof(TICKER_PERIODS) / sizeof(TICKER_PERIODS[0]) ///< Helper constant: Total number of supported frequencies.
 
 /**
  * @brief Defines array indexes for accessing frequency-related data.
